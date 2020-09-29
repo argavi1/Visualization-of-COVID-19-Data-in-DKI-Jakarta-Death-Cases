@@ -1,0 +1,175 @@
+# Load Package
+
+library(httr)
+library(dplyr)
+library(lubridate)
+library(tidyr)
+library(zoo)
+library(ggplot2)
+library(hrbrthemes)
+
+# Fetch COVID-19 data in regional level DKI Jakarta
+
+# In this example, we will inspect DKI Jakarta
+
+resp <- GET("https://data.covid19.go.id/public/api/prov_detail_DKI_JAKARTA.json")
+status_code(resp)
+
+cov_prov_raw <- content(resp, as = "parsed", simplyfyVector = TRUE)
+str(cov_prov_raw, max.level = 2, vec.len =3)
+
+# Inspect the daily death cases
+
+cov_prov_daily <-
+  cov_prov_raw$list_perkembangan %>%
+  transmute(
+    date = as.POSIXct(tanggal / 1000, origin = "1970-01-01") %>%
+      as.Date(),
+    newcase = KASUS,
+    recovered = SEMBUH,
+    death = MENINGGAL
+  )
+
+glimpse(cov_prov_daily)
+
+str(cov_prov_daily)
+
+# Turn table into graph
+
+cov_prov_daily %>%
+  ggplot(aes(date, death)) +
+  geom_col(fill = "firebrick3") +
+  scale_x_date(
+    breaks = "2 weeks",
+    guide = guide_axis(check.overlap = TRUE, n.dodge = 2),
+    labels = scales::label_date(format = "%e %b"),
+    expand = c(0.005, 0.005)
+  ) +
+  labs(
+    x = NULL,
+    y = "Jumlah Kasus",
+    title = "The Daily  COVID-19 Death Cases in DKI Jakarta",
+    subtitle = "The highest COVID-19 death cases happened in 19th April 2020",
+    caption = "Data source: covid.19.go.id"
+  ) +
+  theme_ipsum_tw(
+    base_size = 13,
+    plot_title_size = 21,
+    grid = "Y",
+    ticks = TRUE
+  ) +
+  theme(plot.title.position = "plot")
+
+# In this example, we will transform daily death cases into weekly cases
+# Load Package
+
+library(httr)
+library(dplyr)
+library(lubridate)
+library(tidyr)
+library(zoo)
+library(ggplot2)
+library(hrbrthemes)
+
+# Fetch COVID-19 data in regional level DKI Jakarta
+
+resp <- GET("https://data.covid19.go.id/public/api/prov_detail_DKI_JAKARTA.json")
+status_code(resp)
+
+cov_prov_raw <- content(resp, as = "parsed", simplyfyVector = TRUE)
+str(cov_prov_raw, max.level = 2, vec.len =3)
+
+# Transform daily death cases into weekly cases
+
+cov_prov_weekly <-
+  cov_prov_daily %>%
+  group_by(
+    year = year(date),
+    week = week(date)
+  ) %>%
+  summarise(
+    across(c(newcase:death), ~sum(.x, na.rm = TRUE))
+  ) %>%
+  ungroup()
+
+glimpse(cov_prov_weekly)
+
+# Turn Table into Graph
+
+cov_prov_weekly %>%
+  ggplot(aes(week, death)) +
+  geom_col(fill = "firebrick3") +
+  labs(
+    x= NULL,
+    y = "Number of cases",
+    title = "The Weekly COVID-19 Death Cases in DKI Jakarta",
+    subtitle = "The highest COVID-19 death cases happened in 39th week",
+    caption = "Data source: covid.19.go.id"
+  ) +
+  theme_ipsum_tw(
+    base_size = 13,
+    plot_title_size = 21,
+    grid = "Y",
+    ticks = TRUE
+  ) +
+  theme(plot.title.position = "plot")
+  
+  # In this example, we will compared weekly death cases
+  # Load Package
+
+library(httr)
+library(dplyr)
+library(lubridate)
+library(tidyr)
+library(zoo)
+library(ggplot2)
+library(hrbrthemes)
+
+# Fetch COVID-19 data in regional level DKI Jakarta
+
+# In this example, we will inspect DKI Jakarta
+
+resp <- GET("https://data.covid19.go.id/public/api/prov_detail_DKI_JAKARTA.json")
+status_code(resp)
+
+cov_prov_raw <- content(resp, as = "parsed", simplyfyVector = TRUE)
+str(cov_prov_raw, max.level = 2, vec.len =3)
+
+# Is this week is better than last week?
+
+cov_prov_weekly_comparison <- cov_prov_weekly %>%
+  transmute(
+    year,
+    week,
+    death,
+    death_lastweek = dplyr::lag(death,1),
+    death_lastweek = replace_na(death_lastweek,0),
+    is_better = death < death_lastweek
+  )
+glimpse(cov_prov_weekly_comparison)
+
+cov_prov_weekly_comparison %>%
+  count(is_better)
+
+# Turn table into Graph
+
+cov_prov_weekly_comparison %>%
+  ggplot(aes(week, death, fill = is_better)) +
+  geom_col(show.legend = FALSE) +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_fill_manual(values = c("TRUE" = "seagreen3", "FALSE" = "salmon")) +
+  labs(
+    x = NULL,
+    y = "Number of cases",
+    title = "The Weekly COVID-19 Death Cases in DKI Jakarta",
+    subtitle = "The green column shows the addition of death cases less than a week earlier",
+    caption = "Data source: covid.19.go.id"
+  ) +
+  theme_ipsum_tw(
+    base_size = 13,
+    plot_title_size = 21,
+    grid = "Y",
+    ticks = TRUE
+  ) + theme(plot.title.position = "plot")
+
+# The author acknowledge all this code was edited from https://gist.github.com/aswansyahputra/acc249f6ad716ae007f8879c0ad8f353
